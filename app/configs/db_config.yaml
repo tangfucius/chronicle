@@ -1,0 +1,46 @@
+db_username: biadmin
+db_password: Halfquest_2014
+db_port: 5439
+
+config: 
+    kpitest:
+        db_host: kpitest.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: dev
+    farm:
+        db_host: bicluster.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: farm
+    ffs:
+        db_host: bicluster.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: ffs
+    rs:
+        db_host: bicluster.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: rs
+    custom-diandian:
+        db_host: custom-diandian.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: custom
+    KPI 2.0:
+        db_host: kpi-diandian.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: kpi
+    payment:
+        db_host: funplus-payment.c9ggsenoxwwf.us-west-2.redshift.amazonaws.com
+        db_name: payment
+        db_username: tableau
+        db_password: PAYment4funplus
+    mt2:
+        db_host: bicluster-distribution.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: mt2
+    gz:
+        db_host: bicluster-distribution.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: gz
+    dota:
+        db_host: bicluster-distribution.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: daota
+    xy:
+        db_host: bicluster-distribution.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: xy
+    kpi_funplus:
+        db_host: kpi-funplus.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: kpi
+    tlw:
+        db_host: bicluster-distribution.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
+        db_name: dwtlw

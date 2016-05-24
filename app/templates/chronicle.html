@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% from "_formhelpers.html" import render_field, render_error %}
+{% block page_content %}
+<div class="col-md-12">
+	<ul class="nav nav-tabs" role="tablist">
+    <li role="presentation" class="active"><a href="#home" aria-controls="home" role="tab" data-toggle="tab">KPI</a></li>
+    <li role="presentation"><a href="#game" aria-controls="game" role="tab" data-toggle="tab">Game</a></li>
+  </ul>
+
+  <!-- Tab panes -->
+  <div class="tab-content">
+    <div role="tabpanel" class="tab-pane active" id="home">
+    	<div class="grid-stack">
+		</div>
+    </div>
+    <div role="tabpanel" class="tab-pane" id="game">
+    	<div class="grid-stack">
+		</div>
+	</div>
+  </div>
+	<button id="gridConfig" class="btn">Save Layout</button>
+</div>
+<div class="col-md-4">
+	<!--<div class="form-style-10">
+	<h1>New record</h1>
+	<form method="POST" action="{{ url_for('main.chronicle') }}">
+	    <div class="section"><span>1</span>Details</div>
+	    <div class="inner-wrap">
+	        <label>App <input type="text" name="product" /></label>
+	        <label>Event <input type="text" name="event" /></label>
+	        <label>Start date <input type="text" name="startdate" /></label>
+	        <label>Duration (days) <input type="text" name="duration" /></label>
+	        <label>Comment <textarea name="comment" rows="4"/></textarea></label>
+	        <label>Link <input type="text" name="link" /></label>
+	    </div>
+	    <div class="button-section">
+	     <input type="submit" name="Submit" value="Submit"/>
+	    </div>
+	</form>
+	</div>-->
+	<form method=post action="{{ url_for('main.chronicle') }}">
+	  <dl>
+	  	<dt>App</dt>
+	  	<dd><select id="app" name="app" multiple placeholder="Pick app(s)"></select></dd>
+	  	<dt>Event</dt>
+	  	<dd><select id="event" name="event" multiple placeholder="Pick event(s)"></select></dd>
+	  	<dt>OS</dt>
+	  	<dd><select id="os" name="os" placeholder="Optional"></select></dd>
+	  	<dt>Countries</dt>
+	  	<dd><select id="country_code" name="country_code" multiple placeholder="Optional" width="100%"></select></dd>
+	    {{ render_field(form.sd) }}
+	    {{ render_field(form.dur) }}
+	    {{ render_field(form.comment) }}
+	    {{ render_field(form.url) }}
+	  </dl>
+	  <p><input type=submit value=Add>
+	</form>
+</div>
+<div class="col-md-7">
+	<h4> Latest annotations</h4>
+	{{ latest_annos | safe }}
+	<form id="exportform" action="{{ url_for('main.chronicle') }}" method="POST">
+           <input id="exportcsv" type="hidden" name="action">
+    </form>
+	<button id="exportBtn" class="btn">Export</button>
+</div>
+<!--
+<div class="col-md-8">
+	<div id="timeline">
+	<ul class="timeline">
+	<template v-repeat="row:rows">
+		<li>
+			<div class="direction-r">
+				<div class="flag-wrapper">
+					<span class="flag">[[ row.product ]]</span>
+					<span class="time-wrapper"><span class="time">[[ row.start_date ]]</span></span>
+				</div>
+				<div class="crumbs">[[ row.event ]] >> [[ row.subevent ]]</div>
+				<div class="desc">[[ row.description ]]</div>
+			</div>
+		</li>
+	</template>
+</ul>
+</div>
+</div>-->
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script type="text/javascript" src='/static/plotly_helpers.js'></script>
+    <link href='http://fonts.googleapis.com/css?family=Bitter' rel='stylesheet' type='text/css'>
+    <link href="/static/customform.css" rel="stylesheet" type="text/css">
+    <script>
+    var charts = $.parseJSON('{{ objs | safe }}');
+    var dropdownOpts = $.parseJSON('{{ dropdown_opts | safe }}');
+    var annoObjs = $.parseJSON('{{ anno_objs | safe }}');
+    //console.log(annoObjs);
+    console.log(charts.length);
+    console.log(dropdownOpts);
+
+    var selectizeObjs = {}
+
+    var $selectCountry = $('#country_code').selectize({
+    	plugins: ['remove_button'],
+    	valueField: 'country_code',
+		labelField: 'country_name',
+		searchField: 'country_name',
+		options: dropdownOpts['country']
+    });
+    selectizeObjs['country_code'] = $selectCountry[0].selectize;
+
+    var $selectOs = selectize('#os', dropdownOpts['os']);
+    selectizeObjs['os'] = $selectOs[0].selectize;
+
+    //var apps = ['ffs.global.prod', 'ffs.tango.prod'];
+    var $selectApp = selectize('#app', dropdownOpts['app']);
+    selectizeObjs['app'] = $selectApp[0].selectize;
+    //var selectizeControl = selectApp[0].selectize;
+    //var events = ['rev', 'dau']
+
+    var $eventSelectize = $('#event').selectize({
+    	plugins: ['remove_button'],
+    	valueField: 'name',
+		labelField: 'name',
+		searchField: 'name',
+    	options: dropdownOpts['event'],
+    	create: function(input) {
+	        return {
+	            name: input
+	        }
+    	}
+    })
+
+    selectizeObjs['event'] = $eventSelectize[0].selectize;
+    //selectize('#event', );
+
+    $('#sd').datepicker({
+    				format: "yyyy/mm/dd",
+                    todayBtn: "linked"
+                });
+
+    $(function () {
+	    var options = {
+	        cellHeight: 200,
+	        verticalMargin: 5,
+	        resizable: {
+	        	handles: 'sw, se'
+	        }
+	    };
+	    $('.grid-stack').each(function(index) {
+	    	console.log('grid #', index);
+	    	var self = $(this);
+	    	self.gridstack(options);
+		    var grid = self.data('gridstack');
+			grid.removeAll();
+		
+	    //initialize grid
+		    for (var chart_num=0; chart_num<charts.length; chart_num++) {
+		    	chart_data = charts[chart_num]
+		    	console.log(chart_data);
+		    	var gridPos = chart_data['grid']
+		    	var chartid = chart_data['chartid']
+		    	tabid = chart_data['tab']
+		    	//console.log(gridPos);
+		    	if (index==tabid){
+			    	grid.addWidget($('<div><div class="grid-stack-item-content"><div class="plotlyChartid" style="text-align:center">'+chartid+'</div></div><a class="glyphicon glyphicon-pencil" aria-hidden="true" href="{{ url_for('main.viewchart') }}'+chartid+'"></a><a class="remove glyphicon glyphicon-remove" aria-hidden="true" href="#"></a><div id="plotlyChart'+chart_num+'" style="width: 90%; height: 90%; margin: 0 auto;"></div></div></div>'), gridPos.x, gridPos.y, gridPos.width, gridPos.height);
+			    }
+		    }
+
+		    //draw charts
+		    for (var chart_num=0; chart_num<charts.length; chart_num++) {
+		    	chart_data = charts[chart_num]
+		    	tabid = chart_data['tab']
+		    	if (index==tabid){
+			    	plotly_chart(chart_data, 'plotlyChart'+chart_num);
+			    	var chartDiv = document.getElementById('plotlyChart'+chart_num);
+			    	Plotly.Plots.resize(chartDiv);
+			    	chartDiv.on('plotly_click', function(data){
+			    		if (data.points[0].data.name=='annotations') {
+			    			alert(chart_data['annos'][data.points[0].pointNumber].comment);
+			    		}
+			    	});
+			    }
+			}
+
+		});
+	});
+
+	window.onresize = function() {
+		for (var chart_num=0; chart_num<charts.length; chart_num++) {
+			var chartDiv = document.getElementById('plotlyChart'+chart_num);
+			Plotly.Plots.resize(chartDiv);}
+	};
+
+	$('#exportBtn').click(function(){
+		$('#exportcsv').val('export');
+        $('#exportform').submit(); 
+	})
+
+	$('body').on('click', 'a.remove', function(e){
+		console.log('Removing grid!')
+	    e.preventDefault();
+	    var grid = $('.grid-stack').data('gridstack');
+	    var el = $(this).closest('.grid-stack-item');
+	    grid.removeWidget(el);
+	});
+		
+	$('.nav-tabs').click(function(){
+		console.log('clicked!');
+		for (var chart_num=0; chart_num<charts.length; chart_num++) {
+			var chartDiv = document.getElementById('plotlyChart'+chart_num);
+			Plotly.Plots.resize(chartDiv);}
+	});
+
+	$('.editAnno').click(function(e){
+		e.preventDefault();
+		var ix = $('.editAnno').index(this);
+		console.log(annoObjs[ix]);
+		var dropdownCols = ['app', 'event', 'os', 'country_code']
+		//update dropdown boxes that use selectize (clear first then fill in values)
+		$.each(dropdownCols, function(i, col){
+			selectizeObjs[col].clear();
+			if (col in annoObjs[ix]) {
+				$.each(annoObjs[ix][col], function(j, value) {
+					selectizeObjs[col].addItem(value);
+				});
+			}
+		});
+		var otherColObj = {'date': 'sd', 'duration': 'dur', 'comment': 'comment', 'link': 'url'}
+		Object.keys(otherColObj).forEach(function (key) { 
+			 if (key in annoObjs[ix]) {
+			 	var curVal = annoObjs[ix][key]
+			 	if (key == 'date') {
+			 		curVal = curVal.replace(/-/g, '/')
+			 	}
+			 	$('#'+otherColObj[key]).val(curVal);
+			 }
+		});
+	})
+
+	$('.delAnno').click(function(e){
+		e.preventDefault();
+		var ix = $('.delAnno').index(this);
+		$.post('{{ url_for("main.chronicle") }}', {'data': annoObjs[ix]['anno_id'], 'action': 'delete_anno'}).done(function(response){
+    			alert(response);
+    			window.location.reload();
+    		}); 
+	})
+
+	$('#gridConfig').click(function(){
+		var retObj = {}
+		//$('.grid-stack > .grid-stack-item:visible')
+		$('.grid-stack > .grid-stack-item').each(function(ix){
+			chartid = $(this).find('.plotlyChartid').text();
+			var node = $(this).data('_gridstack_node');
+			retObj[chartid] = {
+		                            x: node.x,
+		                            y: node.y,
+		                            width: node.width,
+		                            height: node.height
+		                        }
+		})
+
+		console.log(retObj);
+	
+		$.post('{{ url_for("main.saveGrid") }}', {'data': JSON.stringify(retObj)}).done(function(response){
+    			var resp = $.parseJSON(response);
+    			if (resp) 
+    				{alert('Success!');}
+    			else 
+    				{alert('Save failed!');}
+    		}); 
+	});
+
+	</script>
+{% endblock %}

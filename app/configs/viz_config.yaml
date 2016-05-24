@@ -1,0 +1,76 @@
+default:
+  tab: 0
+  lines:
+  - event: dau
+    name: dau
+    splits: app
+    agg: sum(v2)
+    freq: day
+    from: now-120d/d
+    to: now
+  - event: dau
+    name: arpu
+    freq: day
+    agg: sum(v1)/sum(v2)
+    y2: true
+    from: now-120d/d
+  annos:
+    event: dau
+  grid:
+    height: 2
+    width: 8
+    x: 0
+    y: 2
+ffs:
+  tab: 1
+  lines:
+  - event: dau
+    name: dau
+    splits: app
+    agg: sum(v2)
+    freq: day
+    from: now-120d/d
+    to: now
+  - event: dau
+    name: arpu
+    freq: day
+    agg: sum(v1)/sum(v2)
+    y2: true
+    from: now-120d/d
+  annos:
+    event: dau
+  grid:
+    height: 2
+    width: 9
+    x: 0
+    y: 0
+coins_store:
+  tab: 1
+  lines:
+  - event: coins_store
+    name: part_rate
+    splits: app
+    agg: sum(v2)/sum(v1)
+    freq: week
+    from: now-120d/d
+  grid:
+    height: 2
+    width: 12
+    x: 0
+    y: 2
+nigga:
+  tab: 0
+  lines:
+  - event: dailyStory
+    name: dailyStory
+    agg: sum(v1)
+    freq: day
+    from: now-120d/d
+    to: now
+  annos:
+    event: dau
+  grid:
+    height: 2
+    width: 8
+    x: 0
+    y: 0

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block page_content %}
+	{{ df | safe }}
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+
+    	function defaultChartConfig(containerId, data) {
+	        nv.addGraph(function() {
+
+	            var chart = nv.models.sparklinePlus();
+	            chart.margin({left:20, right:20})
+	                .x(function(d,i) { return i })
+	                .showLastValue(false)
+	                .xTickFormat(function(d) {
+	                    return d3.time.format('%x')(new Date(data[d].x))
+	                });
+
+	            d3.selectAll(containerId)
+	                    .datum(data)
+	                    .call(chart);
+
+	            return chart;
+	        });
+	    }
+
+    	var sparklines = $.parseJSON('{{ sparklines | safe }}');
+    	console.log(sparklines);
+    	var td_height = $(".rolling td").height();
+    	$.each(['a', 'b', 'c'], function(ix, v) {
+    		$("[data-key="+v+"]").html("<svg class='sparkline'></svg>");
+    		sparkChart = defaultChartConfig("[data-key="+v+"] .sparkline", sparklines[v]);
+    		$("[data-key="+v+"]").height(td_height*2);
+    		//nv.utils.windowResize(sparkChart.update);
+    	});
+    		
+    </script>
+{% endblock %}

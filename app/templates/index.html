@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block page_content %}
+    <table width='100%' class='form'>
+        <thead>
+            <tr>
+                <th width='50%'>Schema</th>
+                <th width='50%'>Table</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <select data-bind='options: dic, optionsText: "schema", optionsCaption: "Select...", value: schema'> </select>
+                </td>
+                <td data-bind="with: schema">
+                    <select data-bind='options: table, optionsCaption: "Select...", value: $parent.table'></select>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table width='100%'>
+        <thead>
+        <tr>
+            <th width='30%'>Columns</th>
+            <th width='30%'>Properties</th>
+            <th width='40%'>Query</th>
+        </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <table>
+                        <tbody data-bind="foreach: columns">
+                            <tr id="checkboxes">   
+                                <td><input type="checkbox" data-bind="checked: isChecked" /></td>
+                                <td><span data-bind="text: name"></span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+                <td>
+                    <table>
+                        <tbody data-bind="foreach: properties">
+                            <tr>   
+                                <td><input type="checkbox" data-bind="checked: isChecked" /></td>
+                                <td><span data-bind="text: name"></span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+                <td>
+                    <div id="query"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <a href='#' data-bind='click: function(data, event) { toggleall(columns(), true) }'>Select all</a>
+                    <a href='#' data-bind='click: function(data, event) { toggleall(columns(), false) }'>Select none</a>&nbsp;&nbsp;
+                </td>
+                <td>
+                    <a href='#' data-bind='click: function(data, event) { toggleall(properties(), true) }'>Select all</a>
+                    <a href='#' data-bind='click: function(data, event) { toggleall(properties(), false) }'>Select none</a>&nbsp;&nbsp;
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        var dic = $.parseJSON('{{ dic | safe }}');
+        var options = $.parseJSON('{{ conn_options | safe }}');
+        console.log(options);
+
+        //columns and properties are arrays
+        var assembleSQL = function(columns, properties, schema, table) {
+            var query = 'select<br>'
+            var total_length = columns.length + properties.length;
+            for (i=0; i<columns.length; i++){
+                query+= columns[i];
+                if (i+1<total_length){
+                    query+=',<br>';
+                }
+            }
+            for (i=0; i<properties.length; i++){
+                query+= 'json_extract_path_text(properties, \''+ properties[i] +'\') as '+ properties[i]
+                if (i+1<properties.length){
+                    query+=',<br>';
+                }
+            }
+            query += '<br>from '+schema+'.'+table;
+            return query;
+        }
+
+        var checkbox = function(name, checked){
+              var self = this;
+              self.name = ko.observable(name || "Unnamed");
+              self.isChecked = ko.observable(checked || false);
+        }
+
+        var CartLine = function() {
+            var self = this;
+            self.schema = ko.observable();
+            self.table = ko.observable();
+            self.columns = ko.observableArray();
+            self.properties = ko.observableArray();
+
+            self.schema.subscribe(function(){
+                self.table(undefined);
+            });
+
+            self.toggleall = function(boxes, bool) {
+                ko.utils.arrayForEach(boxes, function(column){
+                    column.isChecked(bool);
+                });
+                console.log(bool);
+            }
+
+            self.SelectedColumns = ko.computed(function(){
+                var selectedColumns = [];
+                ko.utils.arrayForEach(self.columns(), function(column){
+                if(column.isChecked())
+                  selectedColumns.push(column.name());
+                });
+              return selectedColumns;
+              });
+
+            self.SelectedProperties = ko.computed(function(){
+                var selectedProperties = [];
+                ko.utils.arrayForEach(self.properties(), function(prop){
+                if(prop.isChecked())
+                  selectedProperties.push(prop.name());
+                });
+              return selectedProperties;
+              });
+
+            self.SelectedColumns.subscribe(function(nv){
+                query = assembleSQL(nv, self.SelectedProperties(), self.schema().schema, self.table());
+                $('#query').html(query);
+            });
+
+            self.SelectedProperties.subscribe(function(nv){
+                query = assembleSQL(self.SelectedColumns(), nv, self.schema().schema, self.table());
+                $('#query').html(query);
+            });
+
+            self.table.subscribe(function(newValue) {
+                if (newValue) {
+                    self.columns([]);
+                    self.properties([]);
+
+                    var dataToSend = [self.schema().schema, newValue];
+                    console.log(dataToSend);
+                    $.post('{{ url_for(".get_schema") }}', JSON.stringify(dataToSend)).done(function(data){
+                        var schema_obj = $.parseJSON(data);
+                        for (k in schema_obj){
+                            if (k=='columns'){
+                                for (i in schema_obj[k]){
+                                    self.columns.push(new checkbox(schema_obj[k][i], true));
+                                }
+                            }
+                            else {
+                                for (i in schema_obj[k]){
+                                    self.properties.push(new checkbox(schema_obj[k][i], true));
+                                }
+                            }
+                        }
+                        
+                        var query = assembleSQL(self.SelectedColumns(), self.SelectedProperties(), dataToSend[0], dataToSend[1]);
+                        $('#query').html(query);
+                    });
+                }
+            });
+
+        };
+
+        ko.applyBindings(new CartLine());
+
+        $('#selectall').click(function(){$('#checkboxes input').prop('checked', true);})
+        $('#selectnone').click(function(){$('#checkboxes input').prop('checked', false);})        
+    </script>
+{% endblock %}

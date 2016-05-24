@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block page_content %}
+    <form id="filters" action="#" method="post">
+        <table width="80%">
+            <tbody>
+                <tr>
+                    <td>
+                        <h2>Filters</h2>
+                    </td>
+                </tr>
+                <tr>
+                    <template v-repeat="c:selected.pivots">
+                        <td>
+                            <a v-on="click: loadFilter(c, $event)">
+                                [[c.value]]
+                            </a>
+                        </td>
+                        <td v-if="filters[c.value]">
+                            <select class="selectpicker" data-width="60%" data-live-search="true" name="[[c.value]]" options="filters[c.value]" v-model="selected[c.value]" multiple></select>
+                        </td>
+                    </template>
+                </tr>
+                <tr>
+                    <td>
+                        <h2>Pivots</h2>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="5">
+                        <template v-repeat="c:selected.pivots">
+                            <input type="checkbox" name="pivots" value="[[c.value]]" v-model="c.checked">[[c.value]]</input>
+                        </template>
+                    </td>
+                </tr>
+                </tbody>
+        </table>
+        <table>
+            <tbody>
+                <tr>
+                    <td>
+                        <h2>Aggregates</h2>
+                    </td>
+                </tr>
+                <template v-repeat="aggcols">
+                    <template v-if="[[$index%3]]==0">
+                        <tr>
+                    </template>
+                        <td>
+                            [[$value]]
+                        </td>
+                        <td>
+                            <select class="selectpicker" name="aggfunc_[[$value]]" v-model="selected['agg'][[[$value]]]">
+                                <option v-repeat="funcs">[[$value]]</option>
+                            </select>
+                        </td>
+                    <template v-if="[[$index%3]]==2">
+                        </tr>
+                    </template>
+                </template>
+            </tbody>
+        </table> 
+        <button class="btn">Submit</button>  		
+	</form>
+    <br>
+    <h2> Sample table </h2>
+    {{ df | safe }} 
+    <br>
+    <h2> Visualization (client side) </h2>
+    <div id="output"></div>
+    <a id='clone' href='#'>New chart</a>
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        var renderers = $.extend($.pivotUtilities.renderers, $.pivotUtilities.c3_renderers);
+
+    	var f = $.parseJSON('{{ filters | safe }}');
+        //var draggables = Object.keys(f);
+        var input = $.parseJSON('{{ data_json | safe }}');
+        //console.log(f);
+        //console.log(input);
+
+        var aggs = $.parseJSON('{{ aggs | safe }}');
+        console.log($.extend(f, aggs));
+
+    	var vm = new Vue({
+    		el: '#filters',
+    		data: $.extend(f, aggs),
+            methods: {
+                showSelected: function(e) {
+                    //e.preventDefault();
+                    console.log(this.selected);
+                    //this.$http.post()
+                },
+
+                loadFilter: function(item, e) {
+                    //console.log(e.target);
+                    e.preventDefault();
+                    $(e.target).append('<div id="loading"><img src="/static/loading.gif"></div>');
+                    var objToSend = {};
+                    objToSend['schema'] = 'processed';
+                    objToSend['table'] = 'agg_kpi';
+                    objToSend['field'] = item.value;
+                    $.post('{{ url_for(".loadfilter") }}', objToSend).done(function(response){
+                        var options = $.parseJSON(response);
+                        console.log(options);
+                        vm.$set('filters.'+item.value, options);
+                        $('#loading').remove();
+                        vm.$nextTick(function(){$('.selectpicker').selectpicker('refresh');});
+                    });
+                }
+            },
+            computed: {
+                selectedRows: function() {
+                    return this.selected.pivot_row.filter(function (t) {return t.checked}).map(function(t) {return t.value});
+                }
+            }
+    	});
+    
+        var derivers = $.pivotUtilities.derivers;
+        var monthDeriver = $.pivotUtilities.derivers.dateFormat("date", "%y/%m")
+        $("#output").pivotUI(input, {renderers: renderers, derivedAttributes: {'month': monthDeriver}});
+        $('#clone').click(function() {
+            var div = $("<div></div>");
+            div.pivotUI(input, {renderers: renderers, derivedAttributes: {'month': monthDeriver}});
+            $("#output").append(div);
+        })
+        /*vm.$watch("filters",
+            function(n, o) {
+                console.log(n);
+            },
+            {deep:true, immediate:true}
+        )
+        /*
+        $(".draggable").draggable();*/
+    </script>
+{% endblock %}

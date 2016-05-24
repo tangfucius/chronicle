@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block page_content %}
+	<div class="col-md-9">
+		<div id="chart"></div>
+	</div>
+	<div class="col-md-3" style="float:left">
+		<textarea data-autoresize id="config" name="config" style="float:left"></textarea>
+		<br>
+		<button type="button" class="btn btn-secondary btn-sm" id="updateBtn">Update</button>
+		<button type="button" class="btn btn-secondary btn-sm" id="revertBtn">Revert</button>
+		<button type="button" class="btn btn-secondary btn-sm" id="saveBtn">Save</button>
+		<div id="errors"></div>
+		<br>
+		Chart ID: <input id="chartid">
+	</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script type="text/javascript" src='/static/plotly_helpers.js'></script>
+    <script>
+    	var cfg = '{{ cfg | safe }}'
+    	var chart_data = $.parseJSON('{{ chart | safe }}');
+    	var chartid = '{{ chartid | safe }}'
+    	var chartDiv = document.getElementById('chart');
+    	//console.log(cfg);
+    	$('#config').val(cfg);
+    	$('#chartid').val(chartid);
+    	var resizeTextarea = function(el) {
+    		console.log(el.offsetHeight, el.clientHeight, el.offsetHeight);
+    		var offset = el.offsetHeight - el.clientHeight;
+		    $(el).css('height', 'auto').css('height', el.scrollHeight + offset);
+		};
+
+    	//textarea resize function, from: http://stephanwagner.me/auto-resizing-textarea
+    	$.each($('textarea[data-autoresize]'), function() {
+		    resizeTextarea(this);
+		    $(this).on("change" , function() { resizeTextarea(this); }).removeAttr('data-autoresize');
+		});
+
+    	plotly_chart(chart_data, 'chart');
+        chartDiv.on('plotly_click', function(data){
+                if (data.points[0].data.name=='annotations') {
+                    alert(chart_data['annos'][data.points[0].pointNumber].comment);
+                }
+        });
+
+    	$('#revertBtn').click(function(){
+    		$('#config').val(cfg);
+    		console.log('Offsetting...')
+    		resizeTextarea($('#config').get(0));
+    	});
+    	$('#updateBtn').click(function(){
+    		//console.log($('#config').val());
+            var newstr = $('#chartid').val()+':\n  '+$('#config').val().split('\n').join('\n  ');
+    		$.post('{{ url_for("main.viewchart") }}', {'new': newstr}).done(function(response){
+                console.log(response);
+    			var resp = $.parseJSON(response);
+    			if (resp[0]==0) {
+	    			$('#chart').empty();
+	    			$('#errors').empty();
+	    			plotly_chart(resp[1], 'chart');
+	    		}
+	    		else {
+	    			$('#errors').text(resp[1]);
+	    			console.log(resp[1]);
+	    		}
+    		});
+    	});
+
+    	$('#saveBtn').click(function(){
+    		var newstr = $('#chartid').val()+':\n  '+$('#config').val().split('\n').join('\n  ');
+    		console.log(newstr);
+    		$.post('{{ url_for("main.viewchart") }}', {'new': newstr, 'action': 'save'}).done(function(response){
+    			var resp = $.parseJSON(response);
+    			if (resp[0]==0) {
+	    			$('#chart').empty();
+	    			$('#errors').empty();
+	    			plotly_chart(resp[1], 'chart');
+	    			alert('Chart config saved!');
+	    		}
+	    		else {
+	    			alert("Saved failed. Error msg: ", resp[1]);
+	    			console.log(resp[1]);
+	    		}
+    		});
+    	});
+
+    	window.onresize = function() {
+			Plotly.Plots.resize(chartDiv);
+		};
+
+		chartDiv.on('plotly_click', function(event, eventdata) {
+        	console.log(chartDiv.layout.annotations.length);
+        });
+    </script>
+{% endblock %}

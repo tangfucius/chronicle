@@ -1,0 +1,13 @@
+ffs:
+- db: Tools
+  event: dau
+  sql: SELECT date, app, country, sum(revenue_usd) as value, count(distinct user_key)
+    as value2 FROM processed.fact_dau_snapshot group by 1,2,3;
+- db: BI
+  event: coins_store
+  sql: "select A.date,app,country, count(B.snsid) as value2, count(distinct A.snsid)\
+    \ as value from\n(select date,snsid,app,country from processed.fact_dau_snapshot\n\
+    where level_end>20 and level_end<=50 and \nplaytime_sec>=1200 and playtime_sec<3600)A\n\
+    left join\n(select snsid,trunc(ts) as date from public.events_raw \nwhere event='Mystery_Store_Trade'\
+    \ and json_extract_path_text(properties,'cost_type')='coins' \ngroup by 1,2)B\n\
+    on A.snsid=B.snsid and A.date=B.date\ngroup by 1,2,3;"

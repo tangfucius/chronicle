@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+
+{% block page_content %}
+<div id="fullpage">
+	<div id="fragments" action="#" method="post">
+        <div class="section">
+            <span v-if="query_filenames.length">
+                <select class="selectpicker" data-width="20%" name="queryFileName" options="query_filenames" v-model="selectedFilename" v-on="change: loadQueryFile"></select>
+            </span><a v-on="click: loadQueries">Load</a><br>
+            Name <input type="text" v-model="queryName" placeholder="edit me"><a v-on="click: sendQuery('save', $event)">Save</a>
+            <a v-on="click: sendQuery('refresh', $event)">Update cache</a><br><br>
+    		<template v-repeat="frag:frags">
+    			<b>Fragment #[[$index+1]]</b> <input type="text" v-model="frag.name" placeholder="edit me"><br>
+    			SQL <br>
+    			<textarea type="text" rows="4" cols="80" v-model="frag.sql" placeholder="edit me"></textarea>
+                <br> DB 
+                <select class="selectpicker" data-width="20%" name="dbConfigName" v-model="frag.dbConfigIndex">
+                    <option v-repeat="db_configs" value="[[$index]]">[[name]]</option>
+                </select>
+    			<br> [[db_configs[frag.dbConfigIndex].host]]/[[db_configs[frag.dbConfigIndex].db]]
+    			<br> Index <input type="text" v-model="frag.index" placeholder="edit me">
+    			<a v-on="click: cloneFrag(frag, $index, $event)">Clone</a>
+    			<a v-on="click: removeFrag(frag, $index, $event)">Remove</a>
+    			<br>
+    		</template>
+            -------------<br>
+            <template v-repeat="drop:dropdown_sets">
+                Param <input type="text" v-model="drop.param" placeholder="edit me">
+                Options <input type="text" v-model="drop.optionString" placeholder="edit me">
+                <a v-on="click: cloneParam(drop, $index, $event)">Clone</a>
+                <a v-on="click: removeParam(drop, $index, $event)">Remove</a><br>
+            </template>
+    		<a v-on="click: addFrag">Add</a>
+            Join type <select class="selectpicker" data-width="10%" v-model="joinFlag"> 
+              <option>split</option>
+              <option>union</option>
+              <option>inner</option>
+              <option>outer</option>
+            </select>
+    		<button v-on="click: sendQuery('query', $event)" class="btn">Submit</button>
+            <button v-on="click: sendQuery('export', $event)" class="btn">Export</button>
+            <form id="exportform" action="/compare" method="POST">
+                    <input id="exportcsv" type="hidden" name="data">
+            </form>
+            <div id="spinner"></div>
+        </div>
+        <div class="section">  
+            <template v-repeat="drop:dropdown_htmls">
+                <select class="selectpicker" data-width="20%" name="[[drop.param]]" options="drop.options" v-model="drop.selected" v-on="change: sendQuery('query', $event)"></select>
+            </template> 		
+            <div id="result_df" style="overflow-x:scroll">
+        	   {{ df | safe }}
+            </div>
+            Pivots <input type="text" v-model="pivot_index" placeholder="edit me"><input type="text" v-model="pivot_columns" placeholder="edit me"><input type="text" v-model="value_column" placeholder="edit me"><button v-on="click: sendQuery('pivot', $event)" class="btn">Pivot</button><br>
+        </div>
+        <div class="section">
+            <div id="line_chart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <link href="/static/customform.css" rel="stylesheet" type="text/css">
+    <script>
+        $(document).ready(function() {
+            $('#fullpage').fullpage({
+                //sectionsColor: ['#C63D0F', '#1BBC9B', '#7E8F7C'],
+                verticalCentered: false,
+                navigation: true,
+                navigationPosition: 'right',
+                navigationTooltips: ['First', 'Second', 'Third'],
+                //scrollBar: true,
+                fitToSection: false,
+                scrollOverflow: true,
+                paddingTop: '5px',
+                paddingBottom: '100px'
+            });
+        });
+
+        function defaultChartConfig(containerId, data) {
+            nv.addGraph(function() {
+
+                var chart = nv.models.sparklinePlus();
+                chart.margin({left:20, right:20})
+                    .x(function(d,i) { return i })
+                    .showLastValue(false)
+                    .xTickFormat(function(d) {
+                        return d3.time.format('%x')(new Date(data[d].x))
+                    });
+
+                d3.selectAll(containerId)
+                        .datum(data)
+                        .call(chart);
+
+                return chart;
+            });
+        }
+
+        function defaultLineChart(containerId, data, type) {
+            nv.addGraph(function() {
+                console.log(type);
+                if (type=='line')
+                    {var chart = nv.models.lineChart();
+                    chart.xAxis     //Chart x-axis settings
+                  .axisLabel('Date')
+                  .showMaxMin(false)
+                  .tickFormat(function(d) {
+                        return d3.time.format('%x')(new Date(d));})
+                    }
+                else {var chart = nv.models.multiBarChart();}
+                
+                chart = chart.useInteractiveGuideline(true)
+                .showYAxis(true)        //Show the y-axis
+                .showXAxis(true)
+                .height(300);
+                /*chart.x(function(d,i) { return i })
+                    /*.xTickFormat(function(d) {
+                        return d3.time.format('%x')(new Date(data[d].x))
+                    });*/
+                /**/
+
+                d3.select(containerId).append('svg')
+                        .datum(data)
+                        .call(chart)
+                        .style({'height': 300});
+
+                nv.utils.windowResize(function() { chart.update() });
+                return chart;
+            });
+        }
+
+
+    	var fragment = function(name, sql, dbConfigIndex, index) {
+    		var self = this;
+    		self.name = name;
+    		self.sql = sql;
+    		self.dbConfigIndex = dbConfigIndex;
+    		self.index = index;
+    	}
+
+        var dropdown_config = function(param, optionString) {
+            var self = this;
+            self.param = param;
+            self.optionString = optionString;
+        }
+
+        var dropdown_html = function(param, options, selected) {
+            var self = this;
+            self.param = param;
+            self.options = options;
+            self.selected = selected;
+        }
+
+        var db_configs = $.parseJSON('{{ db_configs | safe }}')
+        var db_configNameArray = db_configs.map(function(obj){
+            return obj.name
+        });
+        console.log(db_configNameArray);
+    	var host = 'bicluster.cpaytjecvzyu.us-west-2.redshift.amazonaws.com'
+		var sql = "SELECT date_trunc('{freq}', date) as date, sum(revenue_usd) as rev FROM processed.fact_dau_snapshot where date>='2016-02-01' group by 1 order by 1;"
+
+    	var vm = new Vue({
+    		el: '#fragments',
+    		data: {
+                queryName: '',
+                selectedFilename: '',
+    			frags:
+    				[new fragment('', sql, 0, '')],
+                dropdown_sets:
+                    [new dropdown_config('', '')],
+                dropdown_htmls:
+                    [],
+                db_configs:
+                    db_configs,
+                query_filenames:
+                    [],
+                query_files:
+                    [],
+                pivot_index: '',
+                pivot_columns: '',
+                value_column: '',
+                joinFlag: 'outer'
+    			},
+    		methods: {
+                sendQuery: function(action, e) {
+                    //e.preventDefault();
+                    
+                    var objToSend = {};
+                    var fragsToSend = []
+                    for (var i=0; i<this.frags.length; i++) {
+					  	var tmp = {};
+					  	var tmpFrag = this.frags[i];
+					  	$.each(['name', 'sql', 'index'], function(ix, v) {
+					  		tmp[v] = tmpFrag[v];
+					  	});
+                        tmp['dbConfigName'] = this.db_configs[tmpFrag.dbConfigIndex].name
+					  	fragsToSend.push(tmp); 
+					}
+                    objToSend['frags'] = fragsToSend
+                    console.log(fragsToSend);
+
+                    //loop through param input text boxes first
+                    var paramsToSend = []
+                    var paramsPos = {}
+                    for (var i=0; i<this.dropdown_sets.length; i++) {
+                        var tmp = {};
+                        var tmpDrop = this.dropdown_sets[i];
+                        tmp['param'] = tmpDrop['param']
+                        tmp['options'] = tmpDrop['optionString'].split(",");
+                        tmp['selected'] = tmp['options'][0]
+                        paramsPos[tmp['param']] = i
+                        paramsToSend.push(tmp); 
+                    }
+
+                    //...then input through the dropdowns, replace if necessary
+                    for (var i=0; i<this.dropdown_htmls.length; i++) {
+                        var tmp = {};
+                        var tmpDrop = this.dropdown_htmls[i];
+                        tmp['param'] = tmpDrop['param']
+                        tmp['options'] = tmpDrop['options'];
+                        tmp['selected'] = tmpDrop['selected']
+                        if (tmp['param'] in paramsPos) {
+                            paramsToSend.splice(i, 1, tmp);
+                        }
+                    }
+
+                    objToSend['params'] = paramsToSend;
+
+                    if (action=='pivot') {
+                        pivotToSend = {}
+                        pivotToSend['index'] = this.pivot_index.split(",").map(function(x){return x.trim()});
+                        pivotToSend['columns'] = this.pivot_columns.split(",").map(function(x){return x.trim()});
+                        pivotToSend['value'] = this.value_column
+                        objToSend['pivot'] = pivotToSend
+                    }
+
+                    objToSend['action'] = action
+                    objToSend['joinFlag'] = this.joinFlag
+
+					console.log('objtosend: ', objToSend);
+
+                    //user is sending query or pivoting
+                    if (['query', 'pivot', 'refresh'].indexOf(action)>-1) {
+                        $('#spinner').html('<div id="loading"><img src="/static/loading.gif"></div>');
+                        $.post('{{ url_for(".compare") }}', {'data':JSON.stringify(objToSend)}).done(function(response){
+                            $('#result_df').empty();
+                            $('#spinner').empty();
+                            $('#line_chart').empty();
+                            var responseObj = $.parseJSON(response);
+                            //querying df already failed
+                            if ("error" in responseObj) {
+                                $('#result_df').append('<b>'+responseObj['error']+'</b><br>');
+                            }
+                            else {
+                                var responseList = responseObj['dfs'];
+                                var dropdowns = responseObj['params'];
+                                console.log(dropdowns);
+                                vm.dropdown_htmls=[];
+                                for (var i=0; i<dropdowns.length; i++) {
+                                    vm.dropdown_htmls.push(new dropdown_html(dropdowns[i].param, dropdowns[i].options, dropdowns[i].selected));
+                                    vm.$nextTick(function(){$('.selectpicker').selectpicker('refresh');});
+                                }
+
+                                $('#result_df').append('<h2>Results</h2>')
+                                var trendHeader = false
+                                for (var i=0; i<responseList.length; i++) {
+                                    var dfObj = responseList[i];
+                                    if ("errors" in dfObj){
+                                        //alert(responseObj['errors']);
+                                        $('#result_df').append('<b>'+dfObj['errors']+'</b><br>');
+                                    }
+                                
+                                    if ("df" in dfObj) {
+                                        $('#result_df').append(dfObj['df']+'<br>');
+                                    }
+
+                                    if ('trend_df' in dfObj) trendHeader = true;
+                                }
+                                $('#result_df .table').tablesorter();
+
+                                if (trendHeader) $('#result_df').append('<h2>Trends</h2>');
+                                for (var i=0; i<responseList.length; i++) {
+                                    var dfObj = responseList[i];
+                                    if ('trend_df' in dfObj){
+                                        $('#result_df').append(dfObj['trend_df']+'<br>');
+                                    }
+                                    
+                                    //start drawing sparklines and charts here...
+                                    if ('chart_xy' in dfObj){
+                                        var chart_data = $.parseJSON(dfObj['chart_xy']);
+                                        console.log(chart_data);
+                                        //var td_height = $(".rolling td").height();
+                                        var td_height = 15;
+                                        linechart_data = [];
+                                        $.each(Object.keys(chart_data), function(ix, v) {
+                                            $("[data-key='"+v+"']").html("<svg class='sparkline'></svg>");
+                                            sparkChart = defaultChartConfig("[data-key='"+v+"'] .sparkline", chart_data[v]);
+                                            $("[data-key='"+v+"']").height(td_height*2);
+                                            var linechart_obj = {}
+                                            linechart_obj.values = chart_data[v].map(function(p){return {'x': p.x, 'y': p.y}});
+                                            linechart_obj.key = v;
+                                            console.log(linechart_obj);
+                                            linechart_data.push(linechart_obj);
+                                            //nv.utils.windowResize(sparkChart.update);
+                                        });
+
+                                        var chart_type = 'is_timeseries' in dfObj ? 'line' : 'bar';
+                                        defaultLineChart("#line_chart", linechart_data, chart_type);
+                                    }
+                                }
+                            }
+                            vm.$nextTick(function(){$.fn.fullpage.reBuild();});      
+                 		});
+                    }
+                    //user is saving query configs
+                    else if (action=='save') {
+                        if (this.queryName.trim()=="") {
+                            alert("Query name cannot be empty!");
+                        }
+                        else {
+                            var wrappedObj = {};
+                            wrappedObj[this.queryName] = objToSend;
+                            $.post('{{ url_for(".saveQuery") }}', {'data':JSON.stringify(wrappedObj)}).done(function(response){
+                                alert("Saved query!");
+                            });
+                        }
+                    }
+                    else if (action=='export') {
+                        $('#exportcsv').val(JSON.stringify(objToSend));
+                        console.log($('#exportcsv').val());
+                        $('#exportform').submit();    
+                    }
+                    //this.$http.post()
+                },
+                addFrag: function(e) {
+                    //e.preventDefault();
+                    obj = new fragment('', '');
+                    this.frags.push(Vue.util.extend({}, obj));
+                    this.$nextTick(function(){$.fn.fullpage.reBuild();});
+                    //this.$http.post()
+                },
+                removeFrag: function(frag, index, e) {
+                    e.preventDefault();
+                    this.frags.splice(index, 1);
+                    this.$nextTick(function(){$.fn.fullpage.reBuild();});
+                },
+                cloneFrag: function(frag, index, e) {
+                    e.preventDefault();
+                    this.frags.push(Vue.util.extend({}, this.frags[index]));
+                    this.$nextTick(function(){
+                        $('.selectpicker').selectpicker('refresh');
+                        $.fn.fullpage.reBuild();
+                    });
+                },
+                removeParam: function(drop, index, e) {
+                    e.preventDefault();
+                    this.dropdown_sets.splice(index, 1);
+                    this.$nextTick(function(){$.fn.fullpage.reBuild();});
+                },
+                cloneParam: function(drop, index, e) {
+                    e.preventDefault();
+                    this.dropdown_sets.push(Vue.util.extend({}, this.dropdown_sets[index]));
+                    this.$nextTick(function(){$.fn.fullpage.reBuild();});
+                },
+                //this function loads the saved query names from file
+                loadQueries: function(e) {
+                    var self = this;
+                    $.post('{{ url_for(".loadQueries") }}').done(function(response){
+                        var queryFiles = $.parseJSON(response);
+                        var queryFilenames = Object.keys(queryFiles);
+                        self.query_files = queryFiles;
+                        self.query_filenames = queryFilenames;
+                        self.$nextTick(function(){$('.selectpicker').selectpicker('refresh');});
+                        self.selectedFilename = self.query_filenames[0];
+                        self.loadQueryFile();
+                    });
+                },
+                loadQueryFile: function(e) {
+                    //the logic is convoluted right now but i cant find a better solution yet...
+                    console.log(this.selectedFilename);
+                    var fileIndex = this.query_filenames.indexOf(this.selectedFilename);
+                    var file = this.query_files[this.selectedFilename];
+                    console.log(file);
+                    var self = this;
+                    self.queryName = self.selectedFilename;
+                    self.frags = file['frags'].map(function(frag){
+                        var newFrag = new fragment(frag.name, frag.sql, db_configNameArray.indexOf(frag.dbConfigName), frag.index);
+                        return newFrag
+                    });
+                    self.joinFlag = file['joinFlag']
+
+                    if ('params' in file) {
+                        self.dropdown_sets = file['params'].map(function(p){
+                            var newParam = new dropdown_config(p.param, p.options.join(','));
+                            return newParam
+                        });
+                    }
+                    self.$nextTick(function(){
+                        $('.selectpicker').selectpicker('refresh');
+                        $.fn.fullpage.reBuild();
+                    });
+                }
+            },
+
+    		})
+
+    /*vm.$watch("frags",
+            function(n, o) {
+                console.log(n);
+            },
+            {deep:true, immediate:true}
+        )*/
+
+    </script>
+{% endblock %}

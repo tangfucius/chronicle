@@ -1,0 +1,368 @@
+test2:
+  frags:
+  - {dbConfigName: ffs, index: date, name: ffs, sql: 'SELECT date_trunc(''{freq}'',
+      date) as date, sum(revenue_usd) as rev FROM processed.fact_dau_snapshot where
+      date>=''2016-02-01'' group by 1 order by 1;'}
+  - {dbConfigName: farm, index: date, name: farm, sql: 'SELECT date_trunc(''{freq}'',
+      date) as date, sum(revenue_usd) as rev FROM processed.fact_dau_snapshot where
+      date>=''2016-02-01'' group by 1 order by 1;'}
+  params:
+  - options: [week, day]
+    param: freq
+    selected: day
+payment_test:
+  frags:
+  - {dbConfigName: payment, index: date, name: '', sql: SELECT * from purchase_order
+      limit 10;}
+  params:
+  - options: [day, week]
+    param: freq
+    selected: day
+  pivot:
+    columns: ['']
+    index: ['']
+    value: ''
+test1:
+  frags:
+  - {dbConfigName: ffs, index: date, name: '', sql: 'SELECT date_trunc(''{freq}'',
+      date) as date, sum(revenue_usd) as rev, count(distinct user_key) as au, sum(case
+      when date=install_date then 1 else 0 end) as new_users FROM processed.fact_dau_snapshot
+      where date>=''2016-02-01'' group by 1 order by 1;'}
+  params:
+  - options: [day, week]
+    param: freq
+    selected: week
+  pivot:
+    columns: ['']
+    index: ['']
+    value: ''
+pivot_demo:
+  frags:
+  - {dbConfigName: ffs, index: date, name: '', sql: 'SELECT date_trunc(''{freq}'',
+      date) as date, app, os, sum(revenue_usd) as rev FROM processed.fact_dau_snapshot
+      where date>=''2016-02-01'' group by 1,2,3 order by 1;'}
+  params:
+  - options: [day, week, month]
+    param: freq
+    selected: day
+  pivot:
+    columns: ['']
+    index: ['']
+    value: ''
+kpi 2.0 diandian:
+  action: save
+  frags:
+  - {dbConfigName: KPI 2.0, index: date, name: '', sql: 'SELECT date_trunc(''{freq}'',
+      date) as date, split_part(app_id, ''.'', 1) as app, sum(revenue_usd) as rev,
+      count(distinct user_key) as au FROM kpi_processed.fact_dau_snapshot where date>=''2016-02-20''
+      and date<CURRENT_DATE group by 1,2 order by 1;'}
+  params:
+  - options: [day, week]
+    param: freq
+    selected: day
+  pivot:
+    columns: [app]
+    index: [date]
+    value: rev
+split_test:
+  action: save
+  frags:
+  - {dbConfigName: kpitest, index: '', name: '', sql: processed.fact_dau_snapshot}
+  - {dbConfigName: kpitest, index: '', name: '', sql: processed.dim_user}
+  params:
+  - options: ['']
+    param: ''
+    selected: ''
+  pivot:
+    columns: ['']
+    index: ['']
+    value: ''
+  split: true
+ffs_payment_discrepancy:
+  action: save
+  frags:
+  - {dbConfigName: ffs, index: date, name: ffs, sql: "select date_trunc('{freq}',\
+      \ ts) as date, sum(amount) as rev from processed.fact_revenue\nwhere app='ffs.global.prod'\
+      \ and payment_processor='googleplayiap' \nand ts>='2015-08-01' and ts<'2016-02-01'\n\
+      group by 1;"}
+  - {dbConfigName: payment, index: date, name: payment, sql: "select date_trunc('{freq}',\
+      \ purchase_time) as date, sum(settlement_amount+settlement_fee) as rev\nfrom\
+      \ purchase_order \nwhere purchase_time>='2015-08-01' and purchase_time<'2016-02-01'\n\
+      and app_id=61\nand txn_id is not NULL\nand settlement_currency is not NULL\n\
+      and txn_status like 'success %%'\ngroup by 1\norder by 1 desc;"}
+  params:
+  - options: [week, day, month]
+    param: freq
+    selected: week
+  pivot:
+    columns: ['']
+    index: ['']
+    value: ''
+  split: false
+rank:
+  action: save
+  frags:
+  - {dbConfigName: ffs, index: date, name: ffs, sql: 'SELECT date, country, chart_id,
+      -1*rank as rank from processed.ranking where country in (''US'', ''DE'') order
+      by 1;'}
+  params:
+  - options: [week, day]
+    param: freq
+    selected: week
+  pivot:
+    columns: ['']
+    index: ['']
+    value: ''
+  split: false
+vs:
+  action: save
+  frags:
+  - {dbConfigName: ffs, index: date, name: '1.0', sql: 'SELECT date_trunc(''{freq}'',
+      date) as date, sum(revenue_usd) as rev, count(distinct user_key) as au, sum(case
+      when date=install_date then 1 else 0 end) as new_users FROM processed.fact_dau_snapshot
+      where date>=''2016-02-28'' group by 1 order by 1;'}
+  - {dbConfigName: KPI 2.0, index: date, name: '2.0', sql: 'SELECT date_trunc(''{freq}'',
+      date) as date, sum(revenue_usd) as rev, count(distinct user_key) as au, sum(is_new_user)
+      as new_users FROM kpi_processed.fact_dau_snapshot where date>=''2016-02-28''
+      and app_id like ''ffs%%'' group by 1 order by 1;'}
+  params:
+  - options: [day, week]
+    param: freq
+    selected: day
+  pivot:
+    columns: ['']
+    index: ['']
+    value: ''
+  split: false
+custom1:
+  action: save
+  frags:
+  - {dbConfigName: ffs, index: '', name: '', sql: "select trunc(ts) as date, \nnullif(json_extract_path_text(properties,'item_id'),'')\
+      \ as item_id,\nnullif(json_extract_path_text(properties,'reward_lucky_package'),'')\
+      \ as reward_lucky_package,\ncount(1)\nfrom public.events_raw where event='buddy'\
+      \ and nullif(json_extract_path_text(properties,'action'),'')='help'\nand trunc(ts)<='2016-3-1'\n\
+      group by 1,2,3\norder by 1,2,3;"}
+  params:
+  - options: ['']
+    param: ''
+    selected: ''
+  pivot:
+    columns: [item_id]
+    index: [date]
+    value: count
+  split: false
+buddy_active:
+  action: save
+  frags:
+  - {dbConfigName: ffs, index: '', name: buddy_help_active, sql: "select trunc(ts)\
+      \ as date, \nnullif(json_extract_path_text(properties,'item_id'),'') as item_id,\n\
+      nullif(json_extract_path_text(properties,'reward_lucky_package'),'') as reward_lucky_package,\n\
+      count(1)\nfrom public.events_raw where event='buddy' and nullif(json_extract_path_text(properties,'action'),'')='help'\n\
+      and trunc(ts)<='2016-3-1'\ngroup by 1,2,3\norder by 1,2,3;"}
+  params:
+  - options: ['']
+    param: ''
+    selected: ''
+  pivot:
+    columns: [item_id]
+    index: [date]
+    value: count
+  split: false
+ffs_snsid_uid:
+  action: save
+  frags:
+  - {dbConfigName: custom-diandian, index: 'snsid, app', name: '', sql: 'SELECT user_id
+      as snsid, app_id as app
+
+      FROM ffs.dim_user
+
+      WHERE os in (''ffs.global.android'', ''ffs.global.tango'',''ffs.thai.android'')
+
+      AND last_login_date >= ''2016-03-09''
+
+      AND app_version <> ''3.5.000''
+
+      limit 20;'}
+  - {dbConfigName: ffs, index: 'snsid, app', name: '', sql: 'select snsid, app, uid
+
+      from processed.dim_user
+
+      where last_login_ts >= ''2016-03-09''
+
+      limit 20;'}
+  joinFlag: outer
+  params:
+  - options: ['']
+    param: ''
+    selected: ''
+  split: false
+user_count:
+  action: save
+  frags:
+  - {dbConfigName: mt2, index: '', name: mt2, sql: select count(1) from processed.dim_user;}
+  - {dbConfigName: dota, index: '', name: dota, sql: select count(1) from processed.dim_user;}
+  - {dbConfigName: xy, index: '', name: xy, sql: select count(1) from processed.dim_user;}
+  - {dbConfigName: gz, index: '', name: gz, sql: select count(1) from processed.dim_user;}
+  joinFlag: outer
+  params:
+  - options: ['']
+    param: ''
+    selected: ''
+  split: false
+gc_dashboard:
+  action: save
+  frags:
+  - {dbConfigName: tlw, index: date, name: tlw, sql: "with g as\n(select u.install_date\
+      \ as date, datediff('{freq}', u.install_date, a.date) as diff, count(1) as c\
+      \ \nFROM \n(select * from processed.fact_dau_snapshot\nwhere datediff('{freq}',\
+      \ date, current_date)<={period}) a\njoin \n(select * from processed.dim_user\
+      \ \nwhere datediff('{freq}', install_date, current_date)<={period}) u\non a.uid\
+      \ = u.uid\nwhere datediff('{freq}', u.install_date, a.date) in (0,1,2,7)\ngroup\
+      \ by 1,2),\n\nh as\n(select a0.*, a1.d1, a2.d2, a7.d7\nfrom\n(select date, c\
+      \ as installs from g where diff=0) a0\nleft join\n(select date, c as d1 from\
+      \ g where diff=1) a1\non a0.date = a1.date\nleft join\n(select date, c as d2\
+      \ from g where diff=2) a2\non a0.date = a2.date\nleft join\n(select date, c\
+      \ as d7 from g where diff=7) a7\non a0.date = a7.date)\n\nselect p.*, p.payers*1.0/p.au\
+      \ as pr, p.rev/p.payers as ARPPU, \nq.installs, q.d1*1.0/q.installs as r1, q.d2*1.0/q.installs\
+      \ as r2, q.d7*1.0/q.installs as r7\nfrom\n(SELECT date_trunc('{freq}', date)\
+      \ as date, count(distinct uid) as au,\nsum(revenue_usd) as rev, \ncount(distinct\
+      \ case when revenue_usd>0 then uid else NULL end) as payers\nFROM processed.fact_dau_snapshot\
+      \ \nwhere datediff('{freq}', date, current_date)<={period}\ngroup by 1) p\n\
+      join \n(select date_trunc('{freq}', date) as date, sum(installs) as installs,\n\
+      sum(d1) as d1, sum(d2) as d2, sum(d7) as d7\nfrom h\ngroup by 1) q\non p.date\
+      \ = q.date\norder by 1 desc;"}
+  - {dbConfigName: kpi_funplus, index: date, name: loe, sql: "with g as\n(select u.install_date\
+      \ as date, datediff('{freq}', u.install_date, a.date) as diff, count(1) as c\
+      \ \nFROM \n(select * from kpi_processed.fact_dau_snapshot\nwhere datediff('{freq}',\
+      \ date, current_date)<={period}\nand app_id='loe.global.prod') a\njoin \n(select\
+      \ * from kpi_processed.dim_user \nwhere datediff('{freq}', install_date, current_date)<={period}\n\
+      and app_id='loe.global.prod') u\non a.user_key = u.user_key\nwhere datediff('{freq}',\
+      \ u.install_date, a.date) in (0,1,2,7)\ngroup by 1,2),\n\nh as\n(select a0.*,\
+      \ a1.d1, a2.d2, a7.d7\nfrom\n(select date, c as installs from g where diff=0)\
+      \ a0\nleft join\n(select date, c as d1 from g where diff=1) a1\non a0.date =\
+      \ a1.date\nleft join\n(select date, c as d2 from g where diff=2) a2\non a0.date\
+      \ = a2.date\nleft join\n(select date, c as d7 from g where diff=7) a7\non a0.date\
+      \ = a7.date)\n\nselect p.*, p.payers*1.0/nullif(p.au,0) as pr, p.rev/nullif(p.payers,\
+      \ 0) as ARPPU, \nq.installs, q.d1*1.0/nullif(q.installs,0) as r1, q.d2*1.0/nullif(q.installs,0)\
+      \ as r2, q.d7*1.0/nullif(q.installs,0) as r7\nfrom\n(SELECT date_trunc('{freq}',\
+      \ date) as date, count(distinct user_key) as au,\nsum(revenue_usd) as rev, \n\
+      count(distinct case when revenue_usd>0 then user_key else NULL end) as payers\n\
+      FROM kpi_processed.fact_dau_snapshot \nwhere datediff('{freq}', date, current_date)<={period}\n\
+      group by 1) p\njoin \n(select date_trunc('{freq}', date) as date, sum(installs)\
+      \ as installs,\nsum(d1) as d1, sum(d2) as d2, sum(d7) as d7\nfrom h\ngroup by\
+      \ 1) q\non p.date = q.date\norder by 1 desc;"}
+  - {dbConfigName: KPI 2.0, index: date, name: warship, sql: "with g as\n(select u.install_date\
+      \ as date, datediff('{freq}', u.install_date, a.date) as diff, count(1) as c\
+      \ \nFROM \n(select * from kpi_processed.fact_dau_snapshot\nwhere datediff('{freq}',\
+      \ date, current_date)<={period}\nand date<current_date\nand app_id='battlewarship.global.prod')\
+      \ a\njoin \n(select * from kpi_processed.dim_user \nwhere datediff('{freq}',\
+      \ install_date, current_date)<={period}\nand app_id='battlewarship.global.prod')\
+      \ u\non a.user_key = u.user_key\nwhere datediff('{freq}', u.install_date, a.date)\
+      \ in (0,1,2,7)\ngroup by 1,2),\n\nh as\n(select a0.*, a1.d1, a2.d2, a7.d7\n\
+      from\n(select date, c as installs from g where diff=0) a0\nleft join\n(select\
+      \ date, c as d1 from g where diff=1) a1\non a0.date = a1.date\nleft join\n(select\
+      \ date, c as d2 from g where diff=2) a2\non a0.date = a2.date\nleft join\n(select\
+      \ date, c as d7 from g where diff=7) a7\non a0.date = a7.date)\n\nselect p.*,\
+      \ p.payers*1.0/nullif(p.au,0) as pr, p.rev/nullif(p.payers, 0) as ARPPU, \n\
+      q.installs, q.d1*1.0/nullif(q.installs,0) as r1, q.d2*1.0/nullif(q.installs,0)\
+      \ as r2, q.d7*1.0/nullif(q.installs,0) as r7\nfrom\n(SELECT date_trunc('{freq}',\
+      \ date) as date, count(distinct user_key) as au,\nsum(revenue_usd) as rev, \n\
+      count(distinct case when revenue_usd>0 then user_key else NULL end) as payers\n\
+      FROM kpi_processed.fact_dau_snapshot \nwhere datediff('{freq}', date, current_date)<={period}\n\
+      and app_id='battlewarship.global.prod'\nand date<current_date\ngroup by 1) p\n\
+      join \n(select date_trunc('{freq}', date) as date, sum(installs) as installs,\n\
+      sum(d1) as d1, sum(d2) as d2, sum(d7) as d7\nfrom h\ngroup by 1) q\non p.date\
+      \ = q.date\norder by 1 desc;"}
+  joinFlag: split
+  params:
+  - options: [day, week, month]
+    param: freq
+    selected: day
+  - options: ['3', '7', '14']
+    param: period
+    selected: '3'
+green_mystron:
+  action: save
+  frags:
+  - {dbConfigName: ffs, index: '', name: '', sql: "select trunc(ts) as date, \ncase\n\
+      \ when level<=22 then 'below_22'\n --when level<=30 then '18_30'\n else 'above_22'\
+      \ end as level_cat,\n case\nwhen item_id not in ('rc', '461001') then 'others'\n\
+      else item_id end as item_id,\n sum(qty) as qty,\n count(distinct snsid) as users\n\
+      \ from\n(select ts, snsid,\nnullif(json_extract_path_text(properties,'level'),'')::int\
+      \ as level,\nnullif(json_extract_path_text(properties,'item_id'),'') as item_id,\n\
+      nullif(json_extract_path_text(properties,'cost_qty'),'')::int as qty\nfrom public.events_raw\n\
+      where event='Mystery_Store_Trade'\nand properties like '%%1001%%'\nand ts<current_date)\n\
+      group by 1,2,3;"}
+  joinFlag: outer
+  params:
+  - options: ['']
+    param: ''
+    selected: ''
+raw1:
+  action: save
+  frags:
+  - {dbConfigName: ffs, index: '', name: '', sql: SELECT * FROM processed.fact_dau_snapshot
+      where date>='2016-02-01' limit 10;}
+  joinFlag: outer
+  params:
+  - options: ['']
+    param: ''
+    selected: ''
+finance:
+  action: save
+  frags:
+  - {dbConfigName: custom-diandian, index: date, name: waf, sql: "SELECT date_trunc('{freq}',\
+      \ date) as date, country, count(distinct uid) as au,\nsum(revenue_usd) as rev,\
+      \ \ncount(distinct case when revenue_usd>0 then uid else NULL end) as payers\n\
+      FROM processed.fact_dau_snapshot \nwhere datediff('{freq}', date, current_date)<={period}\n\
+      group by 1,2"}
+  - {dbConfigName: kpi_funplus, index: date, name: loe, sql: "with g as\n(select u.install_date\
+      \ as date, datediff('{freq}', u.install_date, a.date) as diff, count(1) as c\
+      \ \nFROM \n(select * from kpi_processed.fact_dau_snapshot\nwhere datediff('{freq}',\
+      \ date, current_date)<={period}\nand app_id='loe.global.prod') a\njoin \n(select\
+      \ * from kpi_processed.dim_user \nwhere datediff('{freq}', install_date, current_date)<={period}\n\
+      and app_id='loe.global.prod') u\non a.user_key = u.user_key\nwhere datediff('{freq}',\
+      \ u.install_date, a.date) in (0,1,2,7)\ngroup by 1,2),\n\nh as\n(select a0.*,\
+      \ a1.d1, a2.d2, a7.d7\nfrom\n(select date, c as installs from g where diff=0)\
+      \ a0\nleft join\n(select date, c as d1 from g where diff=1) a1\non a0.date =\
+      \ a1.date\nleft join\n(select date, c as d2 from g where diff=2) a2\non a0.date\
+      \ = a2.date\nleft join\n(select date, c as d7 from g where diff=7) a7\non a0.date\
+      \ = a7.date)\n\nselect p.*, p.payers*1.0/nullif(p.au,0) as pr, p.rev/nullif(p.payers,\
+      \ 0) as ARPPU, \nq.installs, q.d1*1.0/nullif(q.installs,0) as r1, q.d2*1.0/nullif(q.installs,0)\
+      \ as r2, q.d7*1.0/nullif(q.installs,0) as r7\nfrom\n(SELECT date_trunc('{freq}',\
+      \ date) as date, count(distinct user_key) as au,\nsum(revenue_usd) as rev, \n\
+      count(distinct case when revenue_usd>0 then user_key else NULL end) as payers\n\
+      FROM kpi_processed.fact_dau_snapshot \nwhere datediff('{freq}', date, current_date)<={period}\n\
+      group by 1) p\njoin \n(select date_trunc('{freq}', date) as date, sum(installs)\
+      \ as installs,\nsum(d1) as d1, sum(d2) as d2, sum(d7) as d7\nfrom h\ngroup by\
+      \ 1) q\non p.date = q.date\norder by 1 desc;"}
+  - {dbConfigName: KPI 2.0, index: date, name: warship, sql: "with g as\n(select u.install_date\
+      \ as date, datediff('{freq}', u.install_date, a.date) as diff, count(1) as c\
+      \ \nFROM \n(select * from kpi_processed.fact_dau_snapshot\nwhere datediff('{freq}',\
+      \ date, current_date)<={period}\nand date<current_date\nand app_id='battlewarship.global.prod')\
+      \ a\njoin \n(select * from kpi_processed.dim_user \nwhere datediff('{freq}',\
+      \ install_date, current_date)<={period}\nand app_id='battlewarship.global.prod')\
+      \ u\non a.user_key = u.user_key\nwhere datediff('{freq}', u.install_date, a.date)\
+      \ in (0,1,2,7)\ngroup by 1,2),\n\nh as\n(select a0.*, a1.d1, a2.d2, a7.d7\n\
+      from\n(select date, c as installs from g where diff=0) a0\nleft join\n(select\
+      \ date, c as d1 from g where diff=1) a1\non a0.date = a1.date\nleft join\n(select\
+      \ date, c as d2 from g where diff=2) a2\non a0.date = a2.date\nleft join\n(select\
+      \ date, c as d7 from g where diff=7) a7\non a0.date = a7.date)\n\nselect p.*,\
+      \ p.payers*1.0/nullif(p.au,0) as pr, p.rev/nullif(p.payers, 0) as ARPPU, \n\
+      q.installs, q.d1*1.0/nullif(q.installs,0) as r1, q.d2*1.0/nullif(q.installs,0)\
+      \ as r2, q.d7*1.0/nullif(q.installs,0) as r7\nfrom\n(SELECT date_trunc('{freq}',\
+      \ date) as date, count(distinct user_key) as au,\nsum(revenue_usd) as rev, \n\
+      count(distinct case when revenue_usd>0 then user_key else NULL end) as payers\n\
+      FROM kpi_processed.fact_dau_snapshot \nwhere datediff('{freq}', date, current_date)<={period}\n\
+      and app_id='battlewarship.global.prod'\nand date<current_date\ngroup by 1) p\n\
+      join \n(select date_trunc('{freq}', date) as date, sum(installs) as installs,\n\
+      sum(d1) as d1, sum(d2) as d2, sum(d7) as d7\nfrom h\ngroup by 1) q\non p.date\
+      \ = q.date\norder by 1 desc;"}
+  joinFlag: split
+  params:
+  - options: [day, week, month]
+    param: freq
+    selected: day
+  - options: ['3', '7', '14']
+    param: period
+    selected: '3'

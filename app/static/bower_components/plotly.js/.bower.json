@@ -1,0 +1,37 @@
+{
+  "name": "plotly.js",
+  "description": "The open source javascript graphing library that powers plotly",
+  "main": "./dist/plotly.min.js",
+  "authors": [
+    "Plotly, Inc."
+  ],
+  "license": "MIT",
+  "keywords": [
+    "graphing",
+    "plotting",
+    "data",
+    "visualization",
+    "plotly"
+  ],
+  "homepage": "https://plot.ly",
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "build",
+    "devtools",
+    "node_modules",
+    "tasks",
+    "test"
+  ],
+  "version": "1.7.1",
+  "_release": "1.7.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v1.7.1",
+    "commit": "e121fd01bfffffbeb9bd8e1319a82a7954b8d992"
+  },
+  "_source": "git://github.com/plotly/plotly.js.git",
+  "_target": "^1.7.1",
+  "_originalSource": "plotly.js",
+  "_direct": true
+}

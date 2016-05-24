@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block page_content %}
+	<div id="form">
+		<select id="event" name="event" placeholder="Pick event"></select>
+		Start date <input id="sd" name="sd" v-model="sd"></input>
+		End date <input id="ed" name="ed" v-model="ed"></input><br>
+		Write to <input id="dest" name="dest" v-model="dest" placeholder="public.events_raw"></input>
+        Change owner to <input id="owner" name="owner" v-model="owner" placeholder="ffs_pm"></input>
+		<button v-on="click: sendQuery()" class="btn">Submit</button>
+		<div id="errors" style="color:red"></div><br>
+	</div>
+    <div id="cleanConfigs">
+        <h4>Daily cleaning config file</h4>
+        <p>Input the events and how many days you want to keep the raw data on Redshift below. <br>Events are case insensitive. The system will automatically detect which event in the database matches your input.</p>
+        <template v-repeat="cfg:cleanConfigs">
+            <br><input type="text" v-model="cfg.event"> <input type="text" v-model="cfg.days">
+        </template><br>
+        <a v-on="click: addConfig()">Add</a>
+        <button v-on="click: saveConfig()" class="btn">Save</button>
+        <div id="spinner"></div>
+    </div>
+    <div id="sql2ES">
+        <h4>SQL to ElasticSearch config file</h4>
+        <template v-repeat="cfg:sql2ESConfigs">
+            Event <input type="text" v-model="cfg.event"><br>
+            SQL <textarea type="text" rows="4" cols="80" v-model="cfg.sql"></textarea><br>
+            DB <select v-model="cfg.db">
+                  <option>BI</option>
+                  <option>Tools</option>
+                </select>
+            <br><b>Last updated </b>[[cfg.max_date]] <b>Size </b>[[cfg.size]]
+            <br><br>
+        </template><br>
+        <a v-on="click: addConfig()">Add</a>
+        <button v-on="click: saveConfig()" class="btn">Save</button>
+        <div id="spinner"></div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    var eventsOpts = $.parseJSON('{{ events | safe }}');
+    var cleanConfigs = $.parseJSON('{{ clean_configs | safe }}');
+    var sql2ESConfigs = $.parseJSON('{{ sql2es_configs | safe }}');
+    console.log(cleanConfigs);
+    
+    $('#sd').datepicker({
+    				format: "yyyy/mm/dd",
+                    todayBtn: "linked"
+                });
+
+    $('#ed').datepicker({
+    				format: "yyyy/mm/dd",
+                    todayBtn: "linked"
+                });
+
+    $('#event').selectize({
+    	valueField: 'value',
+		labelField: 'value',
+		searchField: 'value',
+		options: eventsOpts
+    });
+
+    var vm = new Vue({
+    		el: '#form',
+    		data: {
+                sd: '',
+    			ed: '',
+    			dest: '',
+                owner: ''
+    			},
+    		methods: {
+    			sendQuery: function(e) {
+    				$('#errors').html('<div id="loading"><img src="/static/loading.gif"></div>');
+    				var objToSend = this.$data;
+    				objToSend['event'] = $('#event').val()
+    				$.post('{{ url_for("main.s3manager") }}', {'data':JSON.stringify(objToSend)}).done(function(response){
+    					var responseObj = $.parseJSON(response);
+    					if (responseObj[0]==-1) {
+    						$('#errors').html(responseObj[1])
+    					}
+    					else {
+    						$('#errors').html(responseObj[1])
+    						alert('Done!')
+    					}
+    				});
+    			}
+    		}
+    	});
+
+    var cleanVM = new Vue({
+        el: '#cleanConfigs',
+        data: {
+            cleanConfigs: cleanConfigs
+        },
+        methods: {
+            saveConfig: function(e) {
+                $('#spinner').html('<div id="loading"><img src="/static/loading.gif"></div>');
+                console.log(this.$data['cleanConfigs']);
+                $.post('{{ url_for("main.save_clean") }}', {'data': JSON.stringify(this.$data['cleanConfigs'])}).done(function(response){
+                    alert('Done!')
+                })
+            },
+            addConfig: function(e) {
+                this.cleanConfigs.push(Vue.util.extend({}, this.cleanConfigs[0]));
+            }
+        }
+    });
+
+    var sql2ESVM = new Vue({
+        el: '#sql2ES',
+        data: {
+            sql2ESConfigs: sql2ESConfigs
+        },
+        methods: {
+            saveConfig: function(e) {
+                $('#spinner').html('<div id="loading"><img src="/static/loading.gif"></div>');
+                console.log(this.sql2ESConfigs);
+                $.post('{{ url_for("main.save_sql2es") }}', {'data': JSON.stringify(this.sql2ESConfigs)}).done(function(response){
+                    $('#spinner').empty();
+                    alert('Done!')
+                })
+            },
+            addConfig: function(e) {
+                this.sql2ESConfigs.push(Vue.util.extend({}, this.sql2ESConfigs[0]));
+            }
+        }
+    });
+
+   	</script>
+{% endblock %}

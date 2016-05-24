@@ -1,0 +1,20 @@
+aws_key: AKIAJ7DQBN5LXCCFQKJA
+aws_secret: 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
+events:
+  BeautyshopProcessReward: 7
+  CollectableDecoration: 7
+  Kitchen: 3
+  Mystery_Store_Trade: 7
+  QuestComplete: 3
+  SeafoodhouseProcessReward: 7
+  SellProduct: 5
+  UseFarmAids: 7
+  UseOP: 5
+  VisitNeighbors: 5
+  claim_daily_story: 5
+  coins_transaction: 2
+  cook_add: 7
+  cook_eat: 7
+  fbc_vote_collect: 7
+  login: 5
+  luckypackage: 7
