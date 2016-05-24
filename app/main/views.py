@@ -183,8 +183,8 @@ def s3manager():
 		if len(errors)>0:
 			return json.dumps([-1, '<br>'.join(errors)])
 		else:
-			cfg = {'aws_key':'AKIAJ7DQBN5LXCCFQKJA',
-		    	   'aws_secret':'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',
+			cfg = {'aws_key':'awskey',
+		    	   'aws_secret':'awssecret',
 		    	   'where': {'event': load_config['event']}
 		    	   }
 			obj = s3RedShiftObj(**cfg)
@@ -241,8 +241,8 @@ def save_clean():
 		raw_events_name = [replace_dangerous(dangerous_words, r['event'].strip().lower())  for r in r_list]
 		sql = """select distinct event, lower(event) as lowered from public.events_raw where lower(event) in ('{0}');""".format("','".join(raw_events_name))
 		print sql
-		cfg = {'aws_key':'AKIAJ7DQBN5LXCCFQKJA',
-		    	   'aws_secret':'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',
+		cfg = {'aws_key':'awskey',
+		    	   'aws_secret':'awssecret',
 		    	   'where': {'event': 'QuestComplete'}
 		    	   }
 		obj = s3RedShiftObj(**cfg)

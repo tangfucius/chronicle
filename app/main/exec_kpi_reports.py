@@ -11,7 +11,7 @@ class RedShiftObj:
 		self.schema = kwargs.get('schema', 'kpi_processed')
 		self.yaml = kwargs.get('yaml', 'kpi-diandian_2_0.yaml')
 		#self.table = kwargs.get('table', 'fact_dau_snapshot')
-		self.db_config = "redshift+psycopg2://biadmin:Halfquest_2014@{cluster}.cpaytjecvzyu.us-west-2.redshift.amazonaws.com:5439/{db}".format(cluster=kwargs.get('cluster', 'kpi-diandian'), db=kwargs.get('db', 'kpi'))
+		self.db_config = "redshift+psycopg2://biadmin:pw@{cluster}.cpaytjecvzyu.us-west-2.redshift.amazonaws.com:5439/{db}".format(cluster=kwargs.get('cluster', 'kpi-diandian'), db=kwargs.get('db', 'kpi'))
 		self.app_col = kwargs.get('app_col', 'app_id')
 		self.engine = create_engine(self.db_config)
 		self.start_date = pd.to_datetime(kwargs.get('start_date', '2014-01-01')).date()
@@ -44,7 +44,7 @@ class RedShiftObj:
 def main(test, append):
 	print 'flags: ', test, append
 	dest_host = 'kpi-diandian.cpaytjecvzyu.us-west-2.redshift.amazonaws.com'
-	rs_config = "redshift+psycopg2://biadmin:Halfquest_2014@kpi-diandian.cpaytjecvzyu.us-west-2.redshift.amazonaws.com:5439/kpi"
+	rs_config = "redshift+psycopg2://biadmin:pw@kpi-diandian.cpaytjecvzyu.us-west-2.redshift.amazonaws.com:5439/kpi"
 	engine = create_engine(rs_config)
 	if test:
 		base = '/Users/funplus/workplace/analytics/'

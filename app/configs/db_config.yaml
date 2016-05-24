@@ -1,5 +1,5 @@
 db_username: biadmin
-db_password: Halfquest_2014
+db_password: pw
 db_port: 5439
 
 config: 
@@ -24,8 +24,8 @@ config:
     payment:
         db_host: funplus-payment.c9ggsenoxwwf.us-west-2.redshift.amazonaws.com
         db_name: payment
-        db_username: tableau
-        db_password: PAYment4funplus
+        db_username: tb
+        db_password: pw
     mt2:
         db_host: bicluster-distribution.cpaytjecvzyu.us-west-2.redshift.amazonaws.com
         db_name: mt2

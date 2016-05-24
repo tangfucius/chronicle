@@ -8,7 +8,7 @@ import sqlalchemy
 from os.path import dirname, basename, abspath
 import os
 
-redshift_cfg = {'BI': {'cluster': 'bicluster.cpaytjecvzyu', 'user': 'biadmin', 'pw': 'Halfquest_2014'},
+redshift_cfg = {'BI': {'cluster': 'bicluster.cpaytjecvzyu', 'user': 'biadmin', 'pw': 'pw'},
                 'Tools': {'cluster': 'ffs-oplog.c2dd4vsii706', 'user': 'ffs', 'pw': 'flu89uKm0nh'}
 }
 
@@ -24,7 +24,7 @@ def main(test, fn, **kwargs):
     for cfg in configs:
         if 'event' in cfg:
             rs_cfg = redshift_cfg[cfg['db']]
-            db_config = "redshift+psycopg2://{user}:{pw}@{cluster}.us-west-2.redshift.amazonaws.com:5439/{db}".format(cluster=rs_cfg.get('cluster', 'bicluster.cpaytjecvzyu'), user=rs_cfg.get('user', 'biadmin'), pw = rs_cfg.get('pw', 'Halfquest_2014'), db=rs_cfg.get('db', 'ffs'))
+            db_config = "redshift+psycopg2://{user}:{pw}@{cluster}.us-west-2.redshift.amazonaws.com:5439/{db}".format(cluster=rs_cfg.get('cluster', 'bicluster.cpaytjecvzyu'), user=rs_cfg.get('user', 'biadmin'), pw = rs_cfg.get('pw', 'pw'), db=rs_cfg.get('db', 'ffs'))
             engine = create_engine(db_config)
             try:
                 sql_to_es(es, cfg['sql'], engine, event=cfg['event'])

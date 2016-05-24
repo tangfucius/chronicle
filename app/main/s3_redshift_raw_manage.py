@@ -23,7 +23,7 @@ class s3RedShiftObj:
 			assert type(v) in [str, unicode]
 		self.where_dict = kwargs.get('where', {})
 		self.table = kwargs.get('table', 'public.events_raw')
-		self.db_config = "redshift+psycopg2://biadmin:Halfquest_2014@{cluster}.cpaytjecvzyu.us-west-2.redshift.amazonaws.com:5439/{db}".format(cluster=kwargs.get('cluster', 'bicluster'), db=kwargs.get('db', 'ffs'))
+		self.db_config = "redshift+psycopg2://biadmin:pw@{cluster}.cpaytjecvzyu.us-west-2.redshift.amazonaws.com:5439/{db}".format(cluster=kwargs.get('cluster', 'bicluster'), db=kwargs.get('db', 'ffs'))
 		self.engine = create_engine(self.db_config)
 		self.region = kwargs.get('region', 'us-west-2')
 		self.detail = kwargs.get('detail', False)
@@ -175,8 +175,8 @@ class s3RedShiftObj:
 
 #test on command line
 def main(test, fn):
-    cfg = {'aws_key':'AKIAJ7DQBN5LXCCFQKJA',
-    	   'aws_secret':'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',
+    cfg = {'aws_key':'awskey',
+    	   'aws_secret':'awssecret',
     	   'where': {'event': 'Achievement'}
     	   }
 
